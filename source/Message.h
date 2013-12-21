@@ -11,18 +11,15 @@ namespace iPhoneSmsExport
 {
     class Message
     {
+    private:
+        static StringUtf8 ms_unknown;
+
     public:
         sqlite3_int64 m_rowId;
-        StringUtf8 m_address;
-        sqlite3_int64 m_date;
         StringUtf8 m_text;
-        sqlite3_int64 m_flags;
-        StringUtf8 m_madridHandle;
-        sqlite3_int64 m_madridFlags;
-        sqlite3_int64 m_madridError;
-        sqlite3_int64 m_isMadrid;
-        sqlite3_int64 m_madridDateRead;
-        sqlite3_int64 m_madridDateDelivered;
+        sqlite3_int64 m_date;
+        StringUtf8 m_handle;
+        sqlite3_int64 m_isFromMe;
 
     public:
         /** Constructor. */
@@ -32,65 +29,25 @@ namespace iPhoneSmsExport
         /** Check if message is valid. */
         bool IsValid() const
         {
-            if (Address().IsEmpty())
-            {
-                printf("Skipping message rowId=%d. Reason: empty address, probably iMessage group chat.\n", m_rowId);
-                return false;
-            }
-
-            if (m_isMadrid)
-            {
-                if (m_madridError)
-                {
-                    printf("Skipping message rowId=%d. Reason: iMessage error is nonzero.\n", m_rowId);
-                    return false;
-                }
-
-                if (m_madridFlags == 32773 || m_madridFlags == 98309)
-                {
-                    printf("Skipping message rowId=%d. Reason: iMessage group chat.\n", m_rowId);
-                    return false;
-                }
-
-                if (m_madridFlags != 36869 && m_madridFlags != 102405 && m_madridFlags != 12289 && m_madridFlags != 77825)
-                {
-                    printf("Skipping message rowId=%d. Reason: unknown iMessage flags.\n", m_rowId);
-                    return false;
-                }
-            }
-
             return true;
         }
 
         /** Check whether messsage is sent or received. */
         bool IsReceived() const
         {
-            if (m_isMadrid)
-            {
-                return (m_madridFlags == 12289 || m_madridFlags == 77825);
-            }
-
-            return (m_flags & 1) == 0;
+            return !m_isFromMe;
         }
 
         /** Get message timestamp in unix time. */
         time_t Timestamp() const
         {
-            if (m_isMadrid)
-            {
-                // Choose date field, only one should be nonzero
-                sqlite3_int64 msgDate = (m_madridDateRead == 0) ? m_madridDateDelivered : m_madridDateRead;
-                // Convert iMessage timestamp to unix time
-                return (time_t)(msgDate + 978307200);
-            }
-
-            return (time_t)m_date;
+            return (time_t)(m_date + 978307200);
         }
 
         /** Address. */
         const StringUtf8& Address() const
         {
-            return m_isMadrid ? m_madridHandle : m_address;
+            return m_handle.IsEmpty() ? ms_unknown : m_handle;
         }
 
         /** Message text. */

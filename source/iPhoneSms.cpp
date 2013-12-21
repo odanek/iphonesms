@@ -17,6 +17,11 @@ namespace iPhoneSmsExport
 {
     /*******************************************************************************/
 
+    // Static member declaration
+    StringUtf8 Message::ms_unknown("Unknown");
+
+    /*******************************************************************************/
+
     // Name of the file containing backup of SMS database
     const std::wstring sms_file(L"\\3d0d7e5fb2ce288813306e4d4636395e047a3d28");
 
@@ -158,51 +163,6 @@ namespace iPhoneSmsExport
 
     /*******************************************************************************/
 
-    static void RetrieveMmsText(sqlite3 *db, sqlite3_int64 msgId, StringUtf8 &msgText)
-    {
-        sqlite3_stmt *stm;
-        char sqlQuery[500];
-
-        msgText.FromString("ERROR");
-
-        // SQL Select
-        sprintf(sqlQuery, "SELECT data FROM msg_pieces WHERE message_id = %d AND content_type = 'text/plain' ORDER BY ROWID;", msgId);
-        int err = sqlite3_prepare_v2(db, sqlQuery, -1, &stm, NULL);
-        
-        if (err == SQLITE_OK)
-        {
-            int numMsg = 0;
-
-            while (sqlite3_step(stm) == SQLITE_ROW)
-            {
-                StringUtf8 rowText; 
-                Sqlite_GetString(stm, 0, rowText);
-
-                if (!numMsg)
-                {
-                    msgText = rowText;
-                }
-                else
-                {
-                    msgText += StringUtf8(" ");
-                    msgText += rowText;
-                }
-            }
-
-            sqlite3_finalize(stm);
-        }
-        else
-        {
-            std::wstringstream msg;
-            msg << "SQL statement preparation failed. \nSQLite error code: " << err;
-            MessageBox(NULL, msg.str().c_str(), L"Error", MB_OK);
-            sqlite3_close(db);
-            exit(1);
-        }
-    }
-
-    /*******************************************************************************/
-
     static void ReadSmsDatabase(const std::wstring &fname, std::vector<Message> &msg)
     {
         sqlite3 *db;
@@ -223,8 +183,14 @@ namespace iPhoneSmsExport
             sqlite3_stmt *stm;
 
             // SQL Select
-            int err = sqlite3_prepare_v2(db, "SELECT rowid, address, date, text, flags, madrid_handle, madrid_flags, madrid_error,"
-                "is_madrid, madrid_date_read, madrid_date_delivered FROM message ORDER BY rowid;", -1, &stm, NULL);
+            int err = sqlite3_prepare_v2(db, 
+                "SELECT message.rowid, message.text, message.date, message.is_from_me, handle.id "
+                "FROM message "
+                "JOIN chat_message_join ON message.rowid = chat_message_join.message_id " 
+                "JOIN chat_handle_join ON chat_message_join.chat_id = chat_handle_join.chat_id "
+                "JOIN handle ON chat_handle_join.handle_id = handle.rowid "
+                "ORDER BY message.rowid", 
+                -1, &stm, NULL);
 
             if (err == SQLITE_OK)
             {
@@ -232,29 +198,14 @@ namespace iPhoneSmsExport
                 {
                     Message m;
 
-                    // Message
-                    m.m_rowId = sqlite3_column_int64(stm, 0);
-                    Sqlite_GetString(stm, 1, m.m_address);
-                    m.m_address.StripSpaces();
+                    // Read message data
+                    m.m_rowId = sqlite3_column_int64(stm, 0);                                        
+                    Sqlite_GetString(stm, 1, m.m_text);
+                    m.m_text.RemoveObjChar();
                     m.m_date = sqlite3_column_int64(stm, 2);
-                
-                    // Text
-                    if (!Sqlite_GetString(stm, 3, m.m_text))
-                    {
-                        // Try to read the text from another database (probably MMS)
-                        RetrieveMmsText(db, m.m_rowId, m.m_text);
-                    }
-
-                    // Flags
-                    m.m_flags = sqlite3_column_int64(stm, 4);
-
-                    // Madrid data
-                    Sqlite_GetString(stm, 5, m.m_madridHandle);
-                    m.m_madridFlags = sqlite3_column_int64(stm, 6);
-                    m.m_madridError = sqlite3_column_int64(stm, 7);
-                    m.m_isMadrid = sqlite3_column_int64(stm, 8);
-                    m.m_madridDateRead = sqlite3_column_int64(stm, 9);
-                    m.m_madridDateDelivered = sqlite3_column_int64(stm, 10);
+                    m.m_isFromMe = sqlite3_column_int64(stm, 3);
+                    Sqlite_GetString(stm, 4, m.m_handle);
+                    m.m_handle.StripSpaces();
 
                     msg.push_back(m);
                 }

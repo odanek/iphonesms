@@ -120,6 +120,36 @@ public:
         return *this;
     }
 
+    /** Remove the object replacement character U+FFFC. 
+    
+        This character may appear in iMessages and MMS as a placeholder for images.
+    */
+    const StringUtf8& RemoveObjChar()
+    {
+        std::vector<uint8_t> newData;        
+        size_t pos = 0;
+        
+        while (pos < Length())
+        {
+            if (pos + 2 < Length())
+            {
+                // In UTF-8 the OBJ char is encoded as 0xEF, 0xBF, 0xBC sequence
+                if (m_data[pos] == 0xef && m_data[pos+1] == 0xbf && m_data[pos+2] == 0xbc)
+                {
+                    // Skip the sequence
+                    pos += 3;
+                    continue;
+                }
+            }
+
+            newData.push_back(m_data[pos]);
+            ++pos;
+        }
+
+        swap(m_data, newData);
+        return *this;
+    }
+
     /** Concatenate two strings. */
     MyType& operator+=(const MyType& str)
     {

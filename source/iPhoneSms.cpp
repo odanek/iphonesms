@@ -241,42 +241,45 @@ namespace iPhoneSmsExport
 
     /*******************************************************************************/
 
-    static void ExportMessages(const char *fname, const std::vector<Message> &msg)
+    static void ExportMessages(const char *fileName, const std::vector<Message> &messageList)
     {    
-        FILE *f = fopen(fname, "wb");
+        FILE *f = fopen(fileName, "wb");
 
         if (f == NULL)
         {
             std::wstringstream msg;
-            msg << "Unable to create output file: " << fname;
+            msg << "Unable to create output file: " << fileName;
             MessageBox(NULL, msg.str().c_str(), L"Error", MB_OK);
             exit(1);
         }
 
         StringUtf8 lastAddress;
-        for (size_t i = 0; i < msg.size(); i++)
+		for (const Message& msg : messageList)
         {
-            if (!msg[i].IsValid())
+            if (!msg.IsValid())
             {
                 continue;
             }
 
             // Address
-            ExportWriteAddress(f, msg[i].Address(), lastAddress);
+            ExportWriteAddress(f, msg.Address(), lastAddress);
 
             // Sent/received
-            fwrite(msg[i].IsReceived() ? "R\t" : "S\t", 1, 2, f);
+            fwrite(msg.IsReceived() ? "R\t" : "S\t", 1, 2, f);
 
             // Timestamp
             char tbuf[50];
-            time_t msgUnixTime = msg[i].Timestamp();
+            time_t msgUnixTime = msg.Timestamp();
             const struct tm *ts = localtime(&msgUnixTime);
             sprintf(tbuf, "%02d.%02d.%d %02d:%02d\t", ts->tm_mday, ts->tm_mon + 1,
                 ts->tm_year + 1900, ts->tm_hour, ts->tm_min);
             fwrite(tbuf, 1, strlen(tbuf), f);
 
             // Message
-            fwrite(&msg[i].Text()[0], 1, msg[i].Text().Length(), f);
+			if (!msg.Text().IsEmpty())
+			{
+				fwrite(&msg.Text()[0], 1, msg.Text().Length(), f);
+			}            
 
             // New line
             fwrite("\r\n", 1, 2, f);

@@ -1,5 +1,6 @@
 // Warning: Quick and dirty code using a lot of nasty windows-specific stuff.
 
+#define UNICODE
 #include <Windows.h>
 #include <Shlobj.h>
 #include <iostream>
@@ -23,7 +24,7 @@ namespace iPhoneSmsExport
     /*******************************************************************************/
 
     // Name of the file containing backup of SMS database
-    const std::wstring sms_file(L"\\3d0d7e5fb2ce288813306e4d4636395e047a3d28");
+    const std::wstring sms_file(L"\\3d\\3d0d7e5fb2ce288813306e4d4636395e047a3d28");
 
     /*******************************************************************************/
 

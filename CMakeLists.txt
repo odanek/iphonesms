@@ -16,7 +16,15 @@ project(iPhoneSmsExport)
 #########################################################################
 
 # turn off some warnings under msc
-add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -DUNICODE)
+if(MSVC)
+    add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE -DUNICODE)
+endif(MSVC)
+
+# MinGW
+if(MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mwindows -static-libgcc -static-libstdc++")
+endif(MINGW)
+
 
 #########################################################################
 #
